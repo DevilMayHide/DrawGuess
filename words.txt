@@ -1,4 +1,3 @@
---- START OF FILE words.txt ---
 苹果
 葡萄
 梨
