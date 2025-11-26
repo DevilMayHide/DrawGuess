@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTextEdit, QLineEdit, QPushButton, QListWidget, QLabel,
     QMessageBox, QGroupBox, QFrame, QGraphicsDropShadowEffect,
-    QDialog # 引入 QDialog
+    QDialog
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
@@ -19,7 +19,7 @@ sys.path.append(str(ROOT_DIR))
 from Shared.protocol import *
 
 # ==========================================
-#   Steam 风格样式表 (Dark Arcade Theme)
+#   样式表 (Updated)
 # ==========================================
 GAME_STYLESHEET = """
 QMainWindow { background-color: #1e1e2e; }
@@ -50,7 +50,7 @@ QLineEdit {
 }
 QLineEdit:focus { border: 2px solid #89b4fa; }
 
-/* 按钮样式 */
+/* 按钮通用样式 */
 QPushButton {
     background-color: #45475a; color: white; border-radius: 8px; padding: 8px 16px;
     font-weight: bold; font-family: "Microsoft YaHei UI"; border: none;
@@ -59,6 +59,7 @@ QPushButton:hover { background-color: #585b70; margin-top: -2px; margin-bottom: 
 QPushButton:pressed { background-color: #313244; margin-top: 2px; margin-bottom: -2px; }
 QPushButton:disabled { background-color: #313244; color: #6c7086; }
 
+/* 特殊功能按钮 */
 QPushButton#btn_send { background-color: #89b4fa; color: #1e1e2e; }
 QPushButton#btn_send:hover { background-color: #b4befe; }
 
@@ -70,21 +71,22 @@ QPushButton#btn_ready:hover { background-color: #94e2d5; }
 QPushButton#btn_ready:pressed { border-bottom: 0px; margin-top: 4px; }
 QPushButton#btn_ready:disabled { background-color: #313244; border-bottom: none; color: #a6adc8; }
 
+/* 工具栏小按钮 */
+QPushButton.tool_btn { font-size: 14px; padding: 5px 10px; }
+QPushButton#btn_clear { background-color: #e78284; color: #1e1e2e; } /* 红色清空 */
+QPushButton#btn_undo { background-color: #f9e2af; color: #1e1e2e; }  /* 黄色撤销 */
+QPushButton#btn_eraser { background-color: #cdd6f4; color: #1e1e2e; } /* 白色橡皮 */
+
 QPushButton.color_btn { border: 2px solid #fff; border-radius: 12px; }
 QPushButton.color_btn:hover { border: 3px solid #f5c2e7; }
 """
 
-# ==========================================
-#   自定义登录弹窗 (新增类)
-# ==========================================
 class LoginDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("创建角色")
         self.setFixedSize(400, 250)
         self.name = "Player"
-
-        # 弹窗样式
         self.setStyleSheet("""
             QDialog { background-color: #1e1e2e; }
             QLabel { color: #cdd6f4; font-size: 16px; }
@@ -99,21 +101,17 @@ class LoginDialog(QDialog):
             }
             QPushButton:hover { background-color: #f5c2e7; }
         """)
-
         layout = QVBoxLayout(self)
         layout.setSpacing(20)
         layout.setContentsMargins(40, 40, 40, 40)
-
         title = QLabel("👾 请输入你的昵称")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("font-size: 20px; font-weight: bold; color: #cba6f7;")
         layout.addWidget(title)
-
         self.input_name = QLineEdit()
         self.input_name.setPlaceholderText("例如: 绘画大师")
         self.input_name.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.input_name)
-
         btn_confirm = QPushButton("进入游戏")
         btn_confirm.setCursor(Qt.PointingHandCursor)
         btn_confirm.clicked.connect(self.accept_input)
@@ -123,22 +121,16 @@ class LoginDialog(QDialog):
         txt = self.input_name.text().strip()
         if txt:
             self.name = txt
-            self.accept() # 关闭弹窗并返回 True
+            self.accept()
         else:
-            # 简单的抖动效果或变红提示，这里简单处理
             self.input_name.setPlaceholderText("昵称不能为空！")
 
-# ==========================================
-#   主窗口类
-# ==========================================
 class MainWindow(QMainWindow):
     def __init__(self, host, port):
         super().__init__()
         self.host = host
         self.port = port
         self.player_name = ""
-        
-        # 游戏状态
         self.is_drawer = False
         self.game_running = False
         self.scores = {} 
@@ -146,7 +138,6 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("DrawGuess - 你画我猜 Online")
         self.resize(1200, 800)
-        
         self.setStyleSheet(GAME_STYLESHEET)
         
         self._init_ui()
@@ -183,12 +174,10 @@ class MainWindow(QMainWindow):
         shadow.setColor(QColor(0, 0, 0, 80))
         shadow.setOffset(0, 5)
         self.canvas_container.setGraphicsEffect(shadow)
-        
-        # 修改容器背景色，让它看起来像桌垫，托住米黄色的纸
         self.canvas_container.setStyleSheet("QFrame#canvas_container { background-color: #45475a; border-radius: 8px; }")
 
         canvas_layout = QVBoxLayout(self.canvas_container)
-        canvas_layout.setContentsMargins(10, 10, 10, 10) # 稍微宽一点的边框
+        canvas_layout.setContentsMargins(10, 10, 10, 10)
         
         self.draw_widget = DrawWidget()
         canvas_layout.addWidget(self.draw_widget)
@@ -220,17 +209,15 @@ class MainWindow(QMainWindow):
         ctrl_layout = QVBoxLayout(ctrl_panel)
         ctrl_layout.setContentsMargins(0, 10, 0, 0)
         
+        # === 工具栏区域 (Updated) ===
         self.tool_widget = QWidget()
-        tool_row = QHBoxLayout(self.tool_widget)
-        tool_row.setContentsMargins(0, 0, 0, 0)
-        tool_row.setSpacing(8)
-        
-        colors = [
-            ("#1e1e2e", "黑"), ("#e78284", "红"), 
-            ("#89b4fa", "蓝"), ("#a6e3a1", "绿"), 
-            ("#f9e2af", "黄"), ("#cba6f7", "紫")
-        ]
-        self.btn_colors = []
+        tool_layout = QVBoxLayout(self.tool_widget) # 改为垂直布局包含两行
+        tool_layout.setContentsMargins(0, 0, 0, 0)
+        tool_layout.setSpacing(8)
+
+        # 第一行：颜色和粗细
+        row1 = QHBoxLayout()
+        colors = [("#1e1e2e", "黑"), ("#e78284", "红"), ("#89b4fa", "蓝"), ("#a6e3a1", "绿"), ("#f9e2af", "黄"), ("#cba6f7", "紫")]
         for c_code, c_name in colors:
             btn = QPushButton()
             btn.setFixedSize(24, 24)
@@ -238,31 +225,55 @@ class MainWindow(QMainWindow):
             btn.setStyleSheet(f"background-color: {c_code}; border-radius: 12px;")
             btn.setToolTip(c_name)
             btn.clicked.connect(lambda _, c=c_code: self.draw_widget.set_pen_color(c))
-            tool_row.addWidget(btn)
-            self.btn_colors.append(btn)
+            row1.addWidget(btn)
         
-        tool_row.addStretch()
+        row1.addStretch()
         
         sizes = [(2, "•"), (5, "●"), (10, "⬤")]
         for s_val, s_text in sizes:
             btn = QPushButton(s_text)
             btn.setFixedSize(30, 30)
             btn.clicked.connect(lambda _, s=s_val: self.draw_widget.set_pen_width(s))
-            tool_row.addWidget(btn)
+            row1.addWidget(btn)
+        
+        tool_layout.addLayout(row1)
+
+        # 第二行：橡皮、撤销、清空
+        row2 = QHBoxLayout()
+        
+        self.btn_eraser = QPushButton("🧼 橡皮")
+        self.btn_eraser.setObjectName("btn_eraser")
+        self.btn_eraser.setProperty("class", "tool_btn")
+        self.btn_eraser.clicked.connect(self.draw_widget.set_eraser_mode)
+        
+        self.btn_undo = QPushButton("↩️ 撤销")
+        self.btn_undo.setObjectName("btn_undo")
+        self.btn_undo.setProperty("class", "tool_btn")
+        self.btn_undo.clicked.connect(self.draw_widget.undo)
+
+        self.btn_clear = QPushButton("🗑️ 清空")
+        self.btn_clear.setObjectName("btn_clear")
+        self.btn_clear.setProperty("class", "tool_btn")
+        self.btn_clear.clicked.connect(self.draw_widget.clear_all)
+
+        row2.addWidget(self.btn_eraser)
+        row2.addWidget(self.btn_undo)
+        row2.addWidget(self.btn_clear)
+        
+        tool_layout.addLayout(row2)
 
         ctrl_layout.addWidget(self.tool_widget)
+        # ==========================================
 
         input_row = QHBoxLayout()
         self.input_edit = QLineEdit()
         self.input_edit.setPlaceholderText("在此输入答案...")
         self.input_edit.returnPressed.connect(self.on_send)
-        
         self.btn_send = QPushButton("发送")
         self.btn_send.setObjectName("btn_send")
         self.btn_send.setFixedSize(60, 36)
         self.btn_send.setCursor(Qt.PointingHandCursor)
         self.btn_send.clicked.connect(self.on_send)
-        
         input_row.addWidget(self.input_edit)
         input_row.addWidget(self.btn_send)
         ctrl_layout.addLayout(input_row)
@@ -290,7 +301,6 @@ class MainWindow(QMainWindow):
         self.net.error_occurred.connect(lambda e: self.sys_msg(f"❌ 网络错误: {e}"))
         self.net.start()
 
-    # ---- 辅助方法 ----
     def sys_msg(self, text):
         self.text_chat.append(f"<span style='color:#a6adc8; font-style:italic;'>[系统] {text}</span>")
 
@@ -308,8 +318,7 @@ class MainWindow(QMainWindow):
                 if name == self.current_drawer_name: status_icon = "🎨"
                 else: status_icon = "🤔"
             display_text = f"{status_icon} {name}  Points: {score}"
-            if name == self.player_name:
-                display_text += " (我)"
+            if name == self.player_name: display_text += " (我)"
             self.list_players.addItem(display_text)
 
     def set_game_ui_state(self, is_drawer):
@@ -326,18 +335,13 @@ class MainWindow(QMainWindow):
             self.btn_send.setEnabled(True)
             self.input_edit.setFocus()
 
-    # ---- 网络回调 (Updated) ----
-
     def on_connected(self):
         self.lbl_info.setText("✅ 已连接 | 验证中...")
-        
-        # === 修改处：使用自定义的 LoginDialog ===
         dlg = LoginDialog(self)
         if dlg.exec_():
             self.player_name = dlg.name
             self.net.send_message({"type": MSG_SET_NAME, "name": self.player_name})
         else:
-            # 如果直接关掉弹窗，可能意味着不想玩了，或者使用默认名
             self.player_name = "Guest"
             self.net.send_message({"type": MSG_SET_NAME, "name": self.player_name})
 
@@ -397,7 +401,7 @@ class MainWindow(QMainWindow):
             hint = msg.get("hint")
             round_id = msg.get("round")
             self.current_drawer_name = drawer
-            self.draw_widget.clear_canvas()
+            self.draw_widget.clear_all() # 新轮次彻底清空
             for k in self.ready_status: self.ready_status[k] = False
             self.btn_ready.setText(f"第 {round_id} 轮进行中")
             self.btn_ready.setEnabled(False)
