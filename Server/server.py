@@ -63,17 +63,23 @@ class GameState:
             if name:
                 self.name_to_conn.pop(name, None)
                 self.ready_players.discard(name)
-                # 如果当前画手掉了，结束回合的逻辑比较复杂，这里简化为重置游戏状态
+                # 如果当前画手掉了，重置状态
                 if self.game_in_progress and name == self.current_drawer:
                     self.game_in_progress = False
                     self.current_drawer = None
             return name
 
-    def set_ready(self, name):
+    def set_player_ready(self, name, is_ready):
+        """设置某个玩家的准备状态 (True=Ready, False=Cancel)"""
         with self.lock:
-            self.ready_players.add(name)
+            if is_ready:
+                self.ready_players.add(name)
+            else:
+                self.ready_players.discard(name)
+            
             # 检查是否所有人都准备好了
             total_players = len(self.clients)
+            # 至少2人才开始
             if total_players >= 2 and len(self.ready_players) == total_players:
                 return True
             return False
@@ -85,6 +91,20 @@ class GameState:
             self.game_in_progress = False
             self.current_drawer = None
             self.current_answer = None
+
+    def get_player_list_data(self):
+        """获取用于广播的完整玩家列表数据"""
+        with self.lock:
+            p_list = []
+            for name, score in self.scores.items():
+                # 只有在线的玩家才放进去
+                if name in self.name_to_conn:
+                    p_list.append({
+                        "name": name,
+                        "score": score,
+                        "is_ready": name in self.ready_players
+                    })
+            return p_list
 
 class GuessDrawServer:
     def __init__(self, host="0.0.0.0", port=9000):
@@ -148,6 +168,16 @@ class GuessDrawServer:
         except OSError:
             pass
 
+    # === 新增：广播玩家列表 ===
+    def broadcast_player_list(self):
+        """向所有客户端同步最新的玩家列表（含状态）"""
+        p_list = self.game.get_player_list_data()
+        msg = {
+            "type": MSG_UPDATE_PLAYERS,
+            "players": p_list
+        }
+        self.broadcast(msg)
+
     def start_new_round(self):
         """开始新的一轮：选人、选题、广播"""
         with self.game.lock:
@@ -159,7 +189,7 @@ class GuessDrawServer:
             self.game.current_drawer = random.choice(players)
             self.game.current_answer = random.choice(self.game.words)
             self.game.game_in_progress = True
-            # 清空准备状态，等待下一轮
+            # 开始后清空准备状态
             self.game.ready_players.clear()
 
             drawer = self.game.current_drawer
@@ -170,7 +200,7 @@ class GuessDrawServer:
 
         print(f"[GAME] Round {round_id}: Drawer={drawer}, Answer={answer}")
 
-        # 1. 广播回合开始（只包含提示）
+        # 1. 广播回合开始
         self.broadcast({
             "type": MSG_ROUND_START,
             "round": round_id,
@@ -184,6 +214,9 @@ class GuessDrawServer:
                 "type": MSG_ASSIGN_WORD,
                 "word": answer
             })
+        
+        # 3. 游戏开始后，广播一次列表（更新大家的状态为未准备/游戏中）
+        self.broadcast_player_list()
 
     def handle_client(self, conn):
         player_name = None
@@ -209,22 +242,13 @@ class GuessDrawServer:
                 if player_name:
                     break
             
-            # 2. 发送欢迎信息 & 广播加入
+            # 2. 发送欢迎信息
             print(f"[SERVER] {player_name} 加入游戏")
-            with self.game.lock:
-                # 构建玩家列表数据： [{"name": "P1", "score": 0, "is_ready": False}, ...]
-                p_list = []
-                for p_name, p_score in self.game.scores.items():
-                    p_list.append({
-                        "name": p_name,
-                        "score": p_score,
-                        "is_ready": p_name in self.game.ready_players
-                    })
-
+            
             self.send_to(conn, {
                 "type": MSG_WELCOME,
                 "player_name": player_name,
-                "players": p_list,
+                "players": self.game.get_player_list_data(),
                 "round": self.game.round_id,
                 "in_game": self.game.game_in_progress,
                 "drawer": self.game.current_drawer
@@ -234,6 +258,9 @@ class GuessDrawServer:
                 "type": MSG_PLAYER_JOIN,
                 "player_name": player_name
             }, exclude=conn)
+            
+            # 有人加入，刷新列表
+            self.broadcast_player_list()
 
             # 3. 游戏循环
             while True:
@@ -258,6 +285,8 @@ class GuessDrawServer:
                     "type": MSG_PLAYER_LEAVE,
                     "player_name": player_name
                 })
+                # 有人离开，刷新列表
+                self.broadcast_player_list()
             conn.close()
 
     def _process_message(self, conn, player_name, msg):
@@ -266,16 +295,15 @@ class GuessDrawServer:
         if mtype == MSG_READY:
             # 只有不在游戏中才能准备
             if not self.game.game_in_progress:
-                all_ready = self.game.set_ready(player_name)
-                # 广播状态变更
-                self.broadcast({
-                    "type": MSG_SYSTEM, 
-                    "text": f"玩家 {player_name} 已准备"
-                })
-                # 还可以广播一个刷新列表的消息，为了简化，客户端根据 system 消息刷新或单独发 msg 均可
-                # 这里我们选择发一个 system 消息，客户端 UI 手动置灰准备按钮即可
+                # 读取客户端传来的状态，True为准备，False为取消
+                wanted_status = msg.get("status", True)
                 
-                if all_ready:
+                start_game = self.game.set_player_ready(player_name, wanted_status)
+                
+                # 状态变了，立刻广播全员列表，实现同步变绿
+                self.broadcast_player_list()
+                
+                if start_game:
                     self.start_new_round()
 
         elif mtype == MSG_CHAT:
@@ -324,6 +352,8 @@ class GuessDrawServer:
                 
                 # 结束当前回合状态，等待再次准备
                 self.game.reset_round_state()
+                # 回合结束，刷新列表（更新分数，重置准备状态）
+                self.broadcast_player_list()
             else:
                 # 猜错了，告诉所有人他猜错了
                 self.broadcast({

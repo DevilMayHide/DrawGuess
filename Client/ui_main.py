@@ -312,8 +312,9 @@ class MainWindow(QMainWindow):
         self.list_players.clear()
         sorted_players = sorted(self.scores.items(), key=lambda x: x[1], reverse=True)
         for name, score in sorted_players:
-            status_icon = "⚪"
-            if self.ready_status.get(name): status_icon = "🟢"
+            status_icon = "⚪" # 默认白色圆点
+            if self.ready_status.get(name): 
+                status_icon = "🟢" # 准备好变绿
             if self.game_running:
                 if name == self.current_drawer_name: status_icon = "🎨"
                 else: status_icon = "🤔"
@@ -350,43 +351,75 @@ class MainWindow(QMainWindow):
         self.sys_msg("与服务器断开连接")
         self.btn_ready.setEnabled(False)
 
+    def on_ready_clicked(self):
+        """点击准备/取消准备"""
+        # 判断当前状态
+        is_currently_ready = self.ready_status.get(self.player_name, False)
+        
+        # 切换状态
+        new_status = not is_currently_ready
+        
+        # 发送状态给服务器
+        self.net.send_message({
+            "type": MSG_READY, 
+            "status": new_status
+        })
+        
+        # 暂时禁用按钮防止连点，等服务器广播回来再刷新
+        self.btn_ready.setEnabled(False) 
+
     def on_msg(self, msg):
         mtype = msg.get("type")
-        if mtype == MSG_WELCOME:
+        
+        # 处理全员列表更新 (新增逻辑)
+        # MSG_UPDATE_PLAYERS 专门用于同步状态
+        if mtype == MSG_UPDATE_PLAYERS or mtype == MSG_WELCOME:
             p_list = msg.get("players", [])
+            
+            # 更新本地数据
             self.scores = {}
             self.ready_status = {}
             for p in p_list:
-                if isinstance(p, dict):
-                    name = p['name']
-                    self.scores[name] = p['score']
-                    self.ready_status[name] = p.get('is_ready', False)
-                else:
-                    self.scores[str(p)] = 0
-                    self.ready_status[str(p)] = False
-            self.game_running = msg.get("in_game", False)
-            self.current_drawer_name = msg.get("drawer")
-            self.sys_msg(f"加入房间成功！当前在线: {len(self.scores)}人")
-            self.lbl_info.setText(f"👤 {self.player_name}")
+                name = p['name']
+                self.scores[name] = p['score']
+                self.ready_status[name] = p.get('is_ready', False)
+            
+            # 如果是 Welcome 消息，处理额外字段
+            if mtype == MSG_WELCOME:
+                self.game_running = msg.get("in_game", False)
+                self.current_drawer_name = msg.get("drawer")
+                self.sys_msg(f"加入房间成功！当前在线: {len(self.scores)}人")
+                self.lbl_info.setText(f"👤 {self.player_name}")
+
+            # 刷新列表 UI
             self.update_player_list()
-            if self.game_running:
-                self.btn_ready.setEnabled(False)
+            
+            # 根据最新状态更新“准备”按钮
+            if not self.game_running:
+                my_ready = self.ready_status.get(self.player_name, False)
+                self.btn_ready.setEnabled(True)
+                
+                if my_ready:
+                    self.btn_ready.setText("❌ 取消准备 (Cancel)")
+                    self.btn_ready.setStyleSheet("background-color: #e78284; color: #1e1e2e; border-bottom: 4px solid #b55a5c;")
+                else:
+                    self.btn_ready.setText("🎮 准备开始 (READY)")
+                    self.btn_ready.setStyleSheet("background-color: #a6e3a1; color: #1e1e2e; border-bottom: 4px solid #589656;")
+            else:
                 self.btn_ready.setText("游戏进行中...")
-                self.set_game_ui_state(False)
+                self.btn_ready.setEnabled(False)
+                self.btn_ready.setStyleSheet("background-color: #45475a; color: #a6adc8; border-bottom: none;")
+                
+                if mtype == MSG_WELCOME and self.game_running:
+                    self.set_game_ui_state(False)
 
         elif mtype == MSG_PLAYER_JOIN:
             name = msg.get("player_name")
-            self.scores[name] = 0
-            self.ready_status[name] = False
             self.sys_msg(f"👋 {name} 加入了房间")
-            self.update_player_list()
 
         elif mtype == MSG_PLAYER_LEAVE:
             name = msg.get("player_name")
-            self.scores.pop(name, None)
-            self.ready_status.pop(name, None)
             self.sys_msg(f"💨 {name} 离开了房间")
-            self.update_player_list()
 
         elif mtype == MSG_SYSTEM:
             text = msg.get("text")
@@ -402,15 +435,18 @@ class MainWindow(QMainWindow):
             round_id = msg.get("round")
             self.current_drawer_name = drawer
             self.draw_widget.clear_all() # 新轮次彻底清空
-            for k in self.ready_status: self.ready_status[k] = False
+            
+            # UI状态更新
             self.btn_ready.setText(f"第 {round_id} 轮进行中")
             self.btn_ready.setEnabled(False)
             self.btn_ready.setStyleSheet("background-color: #fab387; border-bottom: 4px solid #d97e44;")
+            
             is_me = (drawer == self.player_name)
             self.set_game_ui_state(is_me)
             self.text_chat.append(f"<br><center><b style='color:#f9e2af; font-size:14px;'>=== 第 {round_id} 轮开始 ===</b></center>")
             self.sys_msg(f"画手是: <b style='color:#f38ba8'>{drawer}</b> | 提示: {hint}")
-            self.update_player_list()
+            
+            # Server 稍后会发 update_players 刷新列表状态
 
         elif mtype == MSG_ASSIGN_WORD:
             word = msg.get("word")
@@ -423,23 +459,14 @@ class MainWindow(QMainWindow):
         elif mtype == MSG_ROUND_RESULT:
             winner = msg.get("winner")
             ans = msg.get("answer")
-            self.scores = msg.get("scores")
+            # 这里 scores 更新由 update_players 处理，这里只负责显示结果
+            
             self.game_running = False
             self.set_game_ui_state(False)
             self.text_chat.append(f"<center><b style='color:#a6e3a1; font-size:15px;'>🎉 {winner} 猜对了！🎉</b></center>")
             self.text_chat.append(f"<center>答案是: <b style='color:#fab387'>{ans}</b></center><br>")
-            self.btn_ready.setText("🎮 准备下一轮 (READY)")
-            self.btn_ready.setEnabled(True)
-            self.btn_ready.setStyleSheet("")
-            self.update_player_list()
-
-    def on_ready_clicked(self):
-        self.net.send_message({"type": MSG_READY})
-        self.btn_ready.setText("⏳ 已准备 (Waiting...)")
-        self.btn_ready.setEnabled(False)
-        self.btn_ready.setStyleSheet("background-color: #45475a; color: #a6adc8; border-bottom: none;")
-        self.ready_status[self.player_name] = True
-        self.update_player_list()
+            
+            # 按钮状态会由随后的 update_players 刷新重置
 
     def on_send(self):
         text = self.input_edit.text().strip()

@@ -18,6 +18,7 @@ MSG_ROUND_RESULT = "round_result" # 回合结束（广播结果）
 MSG_SYSTEM = "system"          # 系统消息
 MSG_SET_NAME = "set_name"      # 客户端发送昵称
 MSG_READY = "ready"            # 客户端发送准备状态
+MSG_UPDATE_PLAYERS = "update_players"       # 专门用于同步玩家列表（分数、准备状态）
 
 # ---- JSON 编 / 解码工具 ----
 def encode_message(obj):
