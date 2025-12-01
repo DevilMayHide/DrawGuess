@@ -84,7 +84,7 @@ QPushButton.color_btn:hover { border: 3px solid #f5c2e7; }
 class LoginDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("创建角色")
+        self.setWindowTitle("Create Character")
         self.setFixedSize(400, 250)
         self.name = "Player"
         self.setStyleSheet("""
@@ -104,15 +104,15 @@ class LoginDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(20)
         layout.setContentsMargins(40, 40, 40, 40)
-        title = QLabel("👾 请输入你的昵称")
+        title = QLabel("👾 Enter Your Nickname")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("font-size: 20px; font-weight: bold; color: #cba6f7;")
         layout.addWidget(title)
         self.input_name = QLineEdit()
-        self.input_name.setPlaceholderText("例如: 绘画大师")
+        self.input_name.setPlaceholderText("e.g., Drawing Master")
         self.input_name.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.input_name)
-        btn_confirm = QPushButton("进入游戏")
+        btn_confirm = QPushButton("Enter Game")
         btn_confirm.setCursor(Qt.PointingHandCursor)
         btn_confirm.clicked.connect(self.accept_input)
         layout.addWidget(btn_confirm)
@@ -123,7 +123,7 @@ class LoginDialog(QDialog):
             self.name = txt
             self.accept()
         else:
-            self.input_name.setPlaceholderText("昵称不能为空！")
+            self.input_name.setPlaceholderText("Nickname cannot be empty!")
 
 class MainWindow(QMainWindow):
     def __init__(self, host, port):
@@ -136,7 +136,7 @@ class MainWindow(QMainWindow):
         self.scores = {} 
         self.ready_status = {}
 
-        self.setWindowTitle("DrawGuess - 你画我猜 Online")
+        self.setWindowTitle("DrawGuess - Draw & Guess Online")
         self.resize(1200, 800)
         self.setStyleSheet(GAME_STYLESHEET)
         
@@ -154,7 +154,7 @@ class MainWindow(QMainWindow):
         header_layout = QHBoxLayout()
         title_label = QLabel("🎨 DRAW & GUESS")
         title_label.setObjectName("header_title")
-        self.lbl_info = QLabel("正在连接服务器...")
+        self.lbl_info = QLabel("Connecting to server...")
         self.lbl_info.setObjectName("status_label")
         self.lbl_info.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         header_layout.addWidget(title_label)
@@ -190,14 +190,14 @@ class MainWindow(QMainWindow):
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
         sidebar_layout.setSpacing(15)
 
-        grp_players = QGroupBox("🏆 玩家排行榜")
+        grp_players = QGroupBox("🏆 Player Leaderboard")
         l_players = QVBoxLayout(grp_players)
         self.list_players = QListWidget()
         self.list_players.setFocusPolicy(Qt.NoFocus)
         l_players.addWidget(self.list_players)
         sidebar_layout.addWidget(grp_players, stretch=2)
 
-        grp_chat = QGroupBox("💬 消息频道")
+        grp_chat = QGroupBox("💬 Message Channel")
         l_chat = QVBoxLayout(grp_chat)
         self.text_chat = QTextEdit()
         self.text_chat.setReadOnly(True)
@@ -241,17 +241,17 @@ class MainWindow(QMainWindow):
         # 第二行：橡皮、撤销、清空
         row2 = QHBoxLayout()
         
-        self.btn_eraser = QPushButton("🧼 橡皮")
+        self.btn_eraser = QPushButton("🧼 Eraser")
         self.btn_eraser.setObjectName("btn_eraser")
         self.btn_eraser.setProperty("class", "tool_btn")
         self.btn_eraser.clicked.connect(self.draw_widget.set_eraser_mode)
         
-        self.btn_undo = QPushButton("↩️ 撤销")
+        self.btn_undo = QPushButton("↩️ Undo")
         self.btn_undo.setObjectName("btn_undo")
         self.btn_undo.setProperty("class", "tool_btn")
         self.btn_undo.clicked.connect(self.draw_widget.undo)
 
-        self.btn_clear = QPushButton("🗑️ 清空")
+        self.btn_clear = QPushButton("🗑️ Clear")
         self.btn_clear.setObjectName("btn_clear")
         self.btn_clear.setProperty("class", "tool_btn")
         self.btn_clear.clicked.connect(self.draw_widget.clear_all)
@@ -267,18 +267,18 @@ class MainWindow(QMainWindow):
 
         input_row = QHBoxLayout()
         self.input_edit = QLineEdit()
-        self.input_edit.setPlaceholderText("在此输入答案...")
+        self.input_edit.setPlaceholderText("Enter your answer here...")
         self.input_edit.returnPressed.connect(self.on_send)
-        self.btn_send = QPushButton("发送")
+        self.btn_send = QPushButton("Send")
         self.btn_send.setObjectName("btn_send")
-        self.btn_send.setFixedSize(60, 36)
+        self.btn_send.setFixedSize(70, 36)
         self.btn_send.setCursor(Qt.PointingHandCursor)
         self.btn_send.clicked.connect(self.on_send)
         input_row.addWidget(self.input_edit)
         input_row.addWidget(self.btn_send)
         ctrl_layout.addLayout(input_row)
 
-        self.btn_ready = QPushButton("🎮 准备开始 (READY)")
+        self.btn_ready = QPushButton("🎮 Ready to Start (READY)")
         self.btn_ready.setObjectName("btn_ready")
         self.btn_ready.setFixedHeight(50)
         self.btn_ready.setCursor(Qt.PointingHandCursor)
@@ -298,11 +298,11 @@ class MainWindow(QMainWindow):
         self.net.connected.connect(self.on_connected)
         self.net.disconnected.connect(self.on_disconnected)
         self.net.message_received.connect(self.on_msg)
-        self.net.error_occurred.connect(lambda e: self.sys_msg(f"❌ 网络错误: {e}"))
+        self.net.error_occurred.connect(lambda e: self.sys_msg(f"❌ Network Error: {e}"))
         self.net.start()
 
     def sys_msg(self, text):
-        self.text_chat.append(f"<span style='color:#a6adc8; font-style:italic;'>[系统] {text}</span>")
+        self.text_chat.append(f"<span style='color:#a6adc8; font-style:italic;'>[System] {text}</span>")
 
     def chat_msg(self, sender, text):
         color = "#89b4fa" if sender == self.player_name else "#f5c2e7"
@@ -319,7 +319,7 @@ class MainWindow(QMainWindow):
                 if name == self.current_drawer_name: status_icon = "🎨"
                 else: status_icon = "🤔"
             display_text = f"{status_icon} {name}  Points: {score}"
-            if name == self.player_name: display_text += " (我)"
+            if name == self.player_name: display_text += " (Me)"
             self.list_players.addItem(display_text)
 
     def set_game_ui_state(self, is_drawer):
@@ -327,17 +327,17 @@ class MainWindow(QMainWindow):
         self.draw_widget.set_interactive(is_drawer)
         self.tool_widget.setVisible(is_drawer)
         if is_drawer:
-            self.input_edit.setPlaceholderText("🚫 你是画手，请直接画图...")
+            self.input_edit.setPlaceholderText("🚫 You are the drawer, please draw...")
             self.input_edit.setEnabled(False)
             self.btn_send.setEnabled(False)
         else:
-            self.input_edit.setPlaceholderText("💡 输入你的猜测...")
+            self.input_edit.setPlaceholderText("💡 Enter your guess...")
             self.input_edit.setEnabled(True)
             self.btn_send.setEnabled(True)
             self.input_edit.setFocus()
 
     def on_connected(self):
-        self.lbl_info.setText("✅ 已连接 | 验证中...")
+        self.lbl_info.setText("✅ Connected | Authenticating...")
         dlg = LoginDialog(self)
         if dlg.exec_():
             self.player_name = dlg.name
@@ -347,8 +347,8 @@ class MainWindow(QMainWindow):
             self.net.send_message({"type": MSG_SET_NAME, "name": self.player_name})
 
     def on_disconnected(self):
-        self.lbl_info.setText("❌ 服务器断开")
-        self.sys_msg("与服务器断开连接")
+        self.lbl_info.setText("❌ Server Disconnected")
+        self.sys_msg("Disconnected from server")
         self.btn_ready.setEnabled(False)
 
     def on_ready_clicked(self):
@@ -388,7 +388,7 @@ class MainWindow(QMainWindow):
             if mtype == MSG_WELCOME:
                 self.game_running = msg.get("in_game", False)
                 self.current_drawer_name = msg.get("drawer")
-                self.sys_msg(f"加入房间成功！当前在线: {len(self.scores)}人")
+                self.sys_msg(f"Successfully joined the room! Players online: {len(self.scores)}")
                 self.lbl_info.setText(f"👤 {self.player_name}")
 
             # 刷新列表 UI
@@ -400,13 +400,13 @@ class MainWindow(QMainWindow):
                 self.btn_ready.setEnabled(True)
                 
                 if my_ready:
-                    self.btn_ready.setText("❌ 取消准备 (Cancel)")
+                    self.btn_ready.setText("❌ Cancel Ready (Cancel)")
                     self.btn_ready.setStyleSheet("background-color: #e78284; color: #1e1e2e; border-bottom: 4px solid #b55a5c;")
                 else:
-                    self.btn_ready.setText("🎮 准备开始 (READY)")
+                    self.btn_ready.setText("🎮 Ready to Start (READY)")
                     self.btn_ready.setStyleSheet("background-color: #a6e3a1; color: #1e1e2e; border-bottom: 4px solid #589656;")
             else:
-                self.btn_ready.setText("游戏进行中...")
+                self.btn_ready.setText("Game in progress...")
                 self.btn_ready.setEnabled(False)
                 self.btn_ready.setStyleSheet("background-color: #45475a; color: #a6adc8; border-bottom: none;")
                 
@@ -415,11 +415,11 @@ class MainWindow(QMainWindow):
 
         elif mtype == MSG_PLAYER_JOIN:
             name = msg.get("player_name")
-            self.sys_msg(f"👋 {name} 加入了房间")
+            self.sys_msg(f"👋 {name} joined the room")
 
         elif mtype == MSG_PLAYER_LEAVE:
             name = msg.get("player_name")
-            self.sys_msg(f"💨 {name} 离开了房间")
+            self.sys_msg(f"💨 {name} left the room")
 
         elif mtype == MSG_SYSTEM:
             text = msg.get("text")
@@ -436,22 +436,22 @@ class MainWindow(QMainWindow):
             self.current_drawer_name = drawer
             self.draw_widget.clear_all() # 新轮次彻底清空
             
-            # UI状态更新
-            self.btn_ready.setText(f"第 {round_id} 轮进行中")
+            # Update UI status
+            self.btn_ready.setText(f"Round {round_id} in progress")
             self.btn_ready.setEnabled(False)
             self.btn_ready.setStyleSheet("background-color: #fab387; border-bottom: 4px solid #d97e44;")
             
             is_me = (drawer == self.player_name)
             self.set_game_ui_state(is_me)
-            self.text_chat.append(f"<br><center><b style='color:#f9e2af; font-size:14px;'>=== 第 {round_id} 轮开始 ===</b></center>")
-            self.sys_msg(f"画手是: <b style='color:#f38ba8'>{drawer}</b> | 提示: {hint}")
+            self.text_chat.append(f"<br><center><b style='color:#f9e2af; font-size:14px;'>=== Round {round_id} Started ===</b></center>")
+            self.sys_msg(f"Drawer: <b style='color:#f38ba8'>{drawer}</b> | Hint: {hint}")
             
             # Server 稍后会发 update_players 刷新列表状态
 
         elif mtype == MSG_ASSIGN_WORD:
             word = msg.get("word")
-            QMessageBox.information(self, "题目", f"🤫 嘘！你的题目是：\n\n【 {word} 】\n\n快画出来让大家猜！")
-            self.lbl_info.setText(f"🎨 正在画: {word}")
+            QMessageBox.information(self, "Word", f"🤫 Shh! Your word is:\n\n【 {word} 】\n\nDraw it so everyone can guess!")
+            self.lbl_info.setText(f"🎨 Drawing: {word}")
 
         elif mtype == MSG_DRAW:
             self.draw_widget.draw_remote_line(msg.get("data"))
@@ -463,8 +463,8 @@ class MainWindow(QMainWindow):
             
             self.game_running = False
             self.set_game_ui_state(False)
-            self.text_chat.append(f"<center><b style='color:#a6e3a1; font-size:15px;'>🎉 {winner} 猜对了！🎉</b></center>")
-            self.text_chat.append(f"<center>答案是: <b style='color:#fab387'>{ans}</b></center><br>")
+            self.text_chat.append(f"<center><b style='color:#a6e3a1; font-size:15px;'>🎉 {winner} guessed it correctly! 🎉</b></center>")
+            self.text_chat.append(f"<center>The answer was: <b style='color:#fab387'>{ans}</b></center><br>")
             
             # 按钮状态会由随后的 update_players 刷新重置
 
